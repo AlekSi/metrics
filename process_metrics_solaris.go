@@ -17,29 +17,31 @@ import (
 
 /** Solaris 11.3 types deduced from /usr/include/sys/procfs.h **/
 // requires go v1.18+
-type uchar_t uint8 // unsigned char
-type char int8     // signed char
-type short int16
-type ushort_t uint16
-type id_t int32
-type pid_t int32
-type uid_t uint32
-type gid_t uid_t
-type taskid_t id_t
-type projid_t id_t
-type zoneid_t id_t
-type poolid_t id_t
-type uintptr_t uint64
-type long int64
-type ulong_t uint64
-type dev_t ulong_t
-type size_t ulong_t
-type time_t long
-type sigset_t [16]char      // we do not need those struct, so just pad
-type fltset_t [16]char      // we do not need those struct, so just pad
-type sysset_t [64]char      // we do not need those struct, so just pad
-type lwpstatus_t [1296]char // we do not need those struct, so just pad
-type lwpsinfo_t [152]char   // we do not need those struct, so just pad
+type (
+	uchar_t     uint8 // unsigned char
+	char        int8  // signed char
+	short       int16
+	ushort_t    uint16
+	id_t        int32
+	pid_t       int32
+	uid_t       uint32
+	gid_t       uid_t
+	taskid_t    id_t
+	projid_t    id_t
+	zoneid_t    id_t
+	poolid_t    id_t
+	uintptr_t   uint64
+	long        int64
+	ulong_t     uint64
+	dev_t       ulong_t
+	size_t      ulong_t
+	time_t      long
+	sigset_t    [16]char   // we do not need those struct, so just pad
+	fltset_t    [16]char   // we do not need those struct, so just pad
+	sysset_t    [64]char   // we do not need those struct, so just pad
+	lwpstatus_t [1296]char // we do not need those struct, so just pad
+	lwpsinfo_t  [152]char  // we do not need those struct, so just pad
+)
 
 type timestruc_t struct {
 	tv_sec  time_t
@@ -92,8 +94,9 @@ type pstatus_t struct {
 	// 1680
 }
 
-const PRARGSZ = 80 /* number of chars of arguments */
-const PRFNSZ = 16  /* Maximum size of execed filename */
+const (
+	PRARGSZ = 80 /* number of chars of arguments */
+	PRFNSZ  = 16 /* Maximum size of execed filename */)
 
 /* process ps(1) information file.  /proc/<pid>/psinfo */
 type psinfo_t struct {
@@ -375,8 +378,8 @@ var fd_path string
 
 /* lazy init of this process related metrics */
 func init() {
-	var testdata_dir = ""
-	var onTest = len(os.Args) > 1 && strings.HasSuffix(os.Args[0], ".test")
+	testdata_dir := ""
+	onTest := len(os.Args) > 1 && strings.HasSuffix(os.Args[0], ".test")
 	if onTest {
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -458,6 +461,7 @@ var nan = math.NaN()
 func time2float(t timestruc_t) float64 {
 	return float64(t.tv_sec) + float64(t.tv_nsec)*1e-9
 }
+
 func time2float2(a timestruc_t, b timestruc_t) float64 {
 	return float64(a.tv_sec+b.tv_sec) + float64(a.tv_nsec+b.tv_nsec)*1e-9
 }
@@ -467,7 +471,7 @@ func updateProcMetrics() {
 	var psinfo psinfo_t
 	var usage prusage_t
 
-	var fail = pm_fd[FD_STAT] < 0
+	fail := pm_fd[FD_STAT] < 0
 	if !fail {
 		n, err := syscall.Pread(pm_fd[FD_STAT],
 			(*(*[unsafe.Sizeof(status)]byte)(unsafe.Pointer(&status)))[:], 0)
@@ -511,7 +515,7 @@ func updateProcMetrics() {
 		pm_val[PM_MEM_UTIL] = nan
 		pm_val[PM_STARTTIME] = nan
 	} else {
-		//num_threads = psinfo.pr_nlwp + psinfo.pr_nzomb	// already by status
+		// num_threads = psinfo.pr_nlwp + psinfo.pr_nzomb	// already by status
 		pm_val[PM_VSIZE] = float64(psinfo.pr_size << 10)
 		pm_val[PM_RSS] = float64(psinfo.pr_rssize << 10)
 		pm_val[PM_CPU_UTIL] = 100 * float64(psinfo.pr_pctcpu) / float64(0x8000)

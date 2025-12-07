@@ -9,7 +9,7 @@ import (
 
 func ExampleHistogram() {
 	// Define a histogram in global scope.
-	var h = metrics.NewHistogram(`request_duration_seconds{path="/foo/bar"}`)
+	h := metrics.NewHistogram(`request_duration_seconds{path="/foo/bar"}`)
 
 	// Update the histogram with the duration of processRequest call.
 	startTime := time.Now()

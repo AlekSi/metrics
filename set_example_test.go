@@ -10,13 +10,14 @@ import (
 func ExampleSet() {
 	metrics.ExposeMetadata(false)
 
-	// Create a set with a counter
 	s := metrics.NewSet()
+
 	sc := s.NewCounter("set_counter")
+	sc.SetHelp("My awesome counter.") // ignored when ExposeMetadata is false
 	sc.Inc()
+
 	s.NewGauge(`set_gauge{foo="bar"}`, func() float64 { return 42 })
 
-	// Dump metrics from s.
 	var bb bytes.Buffer
 	s.WritePrometheus(&bb)
 	fmt.Printf("set metrics:\n%s\n", bb.String())
@@ -33,7 +34,9 @@ func ExampleExposeMetadata() {
 
 	s := metrics.NewSet()
 
-	s.NewCounter("set_counter").Inc()
+	sc := s.NewCounter("set_counter")
+	sc.SetHelp("My awesome counter.")
+	sc.Inc()
 
 	s.NewGauge(`unused_bytes{foo="bar"}`, func() float64 { return 58 })
 	s.NewGauge(`used_bytes{foo="bar"}`, func() float64 { return 42 })
@@ -85,7 +88,7 @@ func ExampleExposeMetadata() {
 	// response_size_bytes_extra_suffix{quantile="1"} 1
 	// response_size_bytes_extra_suffix_sum 1
 	// response_size_bytes_extra_suffix_count 1
-	// # HELP set_counter
+	// # HELP set_counter My awesome counter.
 	// # TYPE set_counter counter
 	// set_counter 1
 	// # HELP unused_bytes

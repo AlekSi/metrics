@@ -12,7 +12,6 @@ func TestGetMaxFilesLimit(t *testing.T) {
 		if got != want {
 			t.Fatalf("unexpected result: %d, want: %d at getMaxFilesLimit", got, want)
 		}
-
 	}
 	f(1024, "testdata/limits", false)
 	f(0, "testdata/bad_path", true)

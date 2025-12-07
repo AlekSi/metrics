@@ -25,7 +25,6 @@ func TestWriteRuntimeHistogramMetricOk(t *testing.T) {
 		if result != resultExpected {
 			t.Fatalf("unexpected result; got\n%s\nwant\n%s", result, resultExpected)
 		}
-
 	}
 
 	f(&runtimemetrics.Float64Histogram{

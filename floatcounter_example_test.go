@@ -2,15 +2,16 @@ package metrics_test
 
 import (
 	"fmt"
+
 	"github.com/VictoriaMetrics/metrics"
 )
 
 func ExampleFloatCounter() {
 	// Define a float64 counter in global scope.
-	var fc = metrics.NewFloatCounter(`float_metric_total{label1="value1", label2="value2"}`)
+	fc := metrics.NewFloatCounter(`float_metric_total{label1="value1", label2="value2"}`)
 
 	// Add to the counter when needed.
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		fc.Add(1.01)
 	}
 	n := fc.Get()

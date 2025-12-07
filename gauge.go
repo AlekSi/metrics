@@ -97,6 +97,10 @@ func (g *Gauge) marshalTo(prefix string, w io.Writer) {
 	}
 }
 
+func (g *Gauge) Help() string {
+	return ""
+}
+
 func (g *Gauge) metricType() string {
 	return "gauge"
 }

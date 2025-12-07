@@ -268,6 +268,10 @@ func (h *PrometheusHistogram) marshalTo(prefix string, w io.Writer) {
 	fmt.Fprintf(w, "%s_count%s %d\n", name, labels, count)
 }
 
+func (h *PrometheusHistogram) Help() string {
+	return ""
+}
+
 func (h *PrometheusHistogram) metricType() string {
 	return "histogram"
 }

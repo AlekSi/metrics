@@ -2,15 +2,16 @@ package metrics_test
 
 import (
 	"fmt"
+
 	"github.com/VictoriaMetrics/metrics"
 )
 
 func ExampleCounter() {
 	// Define a counter in global scope.
-	var c = metrics.NewCounter(`metric_total{label1="value1", label2="value2"}`)
+	c := metrics.NewCounter(`metric_total{label1="value1", label2="value2"}`)
 
 	// Increment the counter when needed.
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		c.Inc()
 	}
 	n := c.Get()

@@ -93,7 +93,7 @@ func (s *Set) WritePrometheus(w io.Writer) {
 		if metricFamily != prevMetricFamily {
 			// write metadata only once per metric family
 			metricType := nm.metric.metricType()
-			writeMetadata(&bb, metricFamily, metricType)
+			writeMetadata(&bb, metricFamily, nm.metric.Help(), metricType)
 			prevMetricFamily = metricFamily
 		}
 		bb.Write(metricsWithMetadataBuf.Bytes())
@@ -264,8 +264,6 @@ func (s *Set) GetOrCreatePrometheusHistogramExt(name string, upperBounds []float
 //   - foo
 //   - foo{bar="baz"}
 //   - foo{bar="baz",aaa="b"}
-//
-// The returned counter is safe to use from concurrent goroutines.
 func (s *Set) NewCounter(name string) *Counter {
 	c := &Counter{}
 	s.registerMetric(name, c)
@@ -281,8 +279,6 @@ func (s *Set) NewCounter(name string) *Counter {
 //   - foo
 //   - foo{bar="baz"}
 //   - foo{bar="baz",aaa="b"}
-//
-// The returned counter is safe to use from concurrent goroutines.
 //
 // Performance tip: prefer NewCounter instead of GetOrCreateCounter.
 func (s *Set) GetOrCreateCounter(name string) *Counter {

@@ -29,8 +29,9 @@ type namedMetric struct {
 }
 
 type metric interface {
-	marshalTo(prefix string, w io.Writer)
+	Help() string
 	metricType() string
+	marshalTo(prefix string, w io.Writer)
 }
 
 var defaultSet = NewSet()
@@ -334,16 +335,23 @@ func writeMetricFloat64(w io.Writer, metricName, metricType string, value float6
 //
 // If the metadata exposition isn't enabled, then this function is no-op.
 func WriteMetadataIfNeeded(w io.Writer, metricName, metricType string) {
+	WriteMetadataIfNeeded2(w, metricName, "", metricType)
+}
+
+func WriteMetadataIfNeeded2(w io.Writer, metricName, metricHelp, metricType string) {
 	if !isMetadataEnabled() {
 		return
 	}
 	metricFamily := getMetricFamily(metricName)
-	writeMetadata(w, metricFamily, metricType)
+	writeMetadata(w, metricFamily, metricHelp, metricType)
 }
 
-func writeMetadata(w io.Writer, metricFamily, metricType string) {
-	fmt.Fprintf(w, "# HELP %s\n", metricFamily)
-	fmt.Fprintf(w, "# TYPE %s %s\n", metricFamily, metricType)
+func writeMetadata(w io.Writer, metricFamily, metricHelp, metricType string) {
+	fmt.Fprintf(w, "# HELP %s", metricFamily)
+	if metricHelp != "" {
+		fmt.Fprintf(w, " %s", metricHelp)
+	}
+	fmt.Fprintf(w, "\n# TYPE %s %s\n", metricFamily, metricType)
 }
 
 func getMetricFamily(metricName string) string {

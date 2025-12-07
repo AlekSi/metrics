@@ -65,12 +65,11 @@ func TestGaugeIncDecConcurrenc(t *testing.T) {
 	s := NewSet()
 	g := s.NewGauge("foo", nil)
 
-	workers := 5
 	var wg sync.WaitGroup
-	for i := 0; i < workers; i++ {
+	for range 5 {
 		wg.Add(1)
 		go func() {
-			for i := 0; i < 100; i++ {
+			for range 100 {
 				g.Inc()
 				g.Dec()
 			}

@@ -63,6 +63,10 @@ func (fc *FloatCounter) marshalTo(prefix string, w io.Writer) {
 	fmt.Fprintf(w, "%s %g\n", prefix, v)
 }
 
+func (fc *FloatCounter) Help() string {
+	return ""
+}
+
 func (fc *FloatCounter) metricType() string {
 	return "counter"
 }

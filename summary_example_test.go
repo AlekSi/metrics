@@ -9,7 +9,7 @@ import (
 
 func ExampleSummary() {
 	// Define a summary in global scope.
-	var s = metrics.NewSummary(`request_duration_seconds{path="/foo/bar"}`)
+	s := metrics.NewSummary(`request_duration_seconds{path="/foo/bar"}`)
 
 	// Update the summary with the duration of processRequest call.
 	startTime := time.Now()

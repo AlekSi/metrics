@@ -119,6 +119,10 @@ func (sm *Summary) marshalTo(prefix string, w io.Writer) {
 	}
 }
 
+func (sm *Summary) Help() string {
+	return ""
+}
+
 func (sm *Summary) metricType() string {
 	// this metric type should not be printed, because summary (sum and count)
 	// of the same metric family will be printed after quantile(s).
@@ -204,6 +208,10 @@ func (qv *quantileValue) marshalTo(prefix string, w io.Writer) {
 	if !math.IsNaN(v) {
 		fmt.Fprintf(w, "%s %g\n", prefix, v)
 	}
+}
+
+func (qv *quantileValue) Help() string {
+	return ""
 }
 
 func (qv *quantileValue) metricType() string {
