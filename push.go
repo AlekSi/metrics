@@ -59,7 +59,7 @@ type PushOptions struct {
 // See https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format
 //
 // It is recommended pushing metrics to /api/v1/import/prometheus endpoint according to
-// https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format
+// https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format
 //
 // It is OK calling InitPushWithOptions multiple times with different pushURL -
 // in this case metrics are pushed to all the provided pushURL urls.
@@ -79,7 +79,7 @@ func InitPushWithOptions(ctx context.Context, pushURL string, interval time.Dura
 // See https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format
 //
 // It is recommended pushing metrics to /api/v1/import/prometheus endpoint according to
-// https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format
+// https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format
 //
 // It is OK calling InitPushProcessMetrics multiple times with different pushURL -
 // in this case metrics are pushed to all the provided pushURL urls.
@@ -98,7 +98,7 @@ func InitPushProcessMetrics(pushURL string, interval time.Duration, extraLabels 
 // See https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format
 //
 // It is recommended pushing metrics to /api/v1/import/prometheus endpoint according to
-// https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format
+// https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format
 //
 // It is OK calling InitPush multiple times with different pushURL -
 // in this case metrics are pushed to all the provided pushURL urls.
@@ -116,7 +116,7 @@ func InitPush(pushURL string, interval time.Duration, extraLabels string, pushPr
 // opts may contain additional configuration options if non-nil.
 //
 // It is recommended pushing metrics to /api/v1/import/prometheus endpoint according to
-// https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format
+// https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format
 func PushMetrics(ctx context.Context, pushURL string, pushProcessMetrics bool, opts *PushOptions) error {
 	writeMetrics := func(w io.Writer) {
 		WritePrometheus(w, pushProcessMetrics)
@@ -135,7 +135,7 @@ func PushMetrics(ctx context.Context, pushURL string, pushProcessMetrics bool, o
 // See https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format
 //
 // It is recommended pushing metrics to /api/v1/import/prometheus endpoint according to
-// https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format
+// https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format
 //
 // It is OK calling InitPushWithOptions multiple times with different pushURL -
 // in this case metrics are pushed to all the provided pushURL urls.
@@ -152,7 +152,7 @@ func (s *Set) InitPushWithOptions(ctx context.Context, pushURL string, interval 
 // See https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format
 //
 // It is recommended pushing metrics to /api/v1/import/prometheus endpoint according to
-// https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format
+// https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format
 //
 // It is OK calling InitPush multiple times with different pushURL -
 // in this case metrics are pushed to all the provided pushURL urls.
@@ -165,7 +165,7 @@ func (s *Set) InitPush(pushURL string, interval time.Duration, extraLabels strin
 // opts may contain additional configuration options if non-nil.
 //
 // It is recommended pushing metrics to /api/v1/import/prometheus endpoint according to
-// https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format
+// https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format
 func (s *Set) PushMetrics(ctx context.Context, pushURL string, opts *PushOptions) error {
 	return PushMetricsExt(ctx, pushURL, s.WritePrometheus, opts)
 }
@@ -179,7 +179,7 @@ func (s *Set) PushMetrics(ctx context.Context, pushURL string, opts *PushOptions
 // See https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md#text-based-format
 //
 // It is recommended pushing metrics to /api/v1/import/prometheus endpoint according to
-// https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format
+// https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format
 //
 // It is OK calling InitPushExt multiple times with different pushURL -
 // in this case metrics are pushed to all the provided pushURL urls.
@@ -204,7 +204,7 @@ func InitPushExt(pushURL string, interval time.Duration, extraLabels string, wri
 // opts may contain additional configuration options if non-nil.
 //
 // It is recommended pushing metrics to /api/v1/import/prometheus endpoint according to
-// https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format
+// https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format
 //
 // It is OK calling InitPushExtWithOptions multiple times with different pushURL -
 // in this case metrics are pushed to all the provided pushURL urls.
@@ -263,7 +263,7 @@ func InitPushExtWithOptions(ctx context.Context, pushURL string, interval time.D
 // opts may contain additional configuration options if non-nil.
 //
 // It is recommended pushing metrics to /api/v1/import/prometheus endpoint according to
-// https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format
+// https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format
 func PushMetricsExt(ctx context.Context, pushURL string, writeMetrics func(w io.Writer), opts *PushOptions) error {
 	pc, err := newPushContext(pushURL, opts)
 	if err != nil {
@@ -395,7 +395,7 @@ func (pc *pushContext) pushMetrics(ctx context.Context, writeMetrics func(w io.W
 	}
 
 	req.Header.Set("Content-Type", "text/plain")
-	// Set the needed headers, and `Content-Type` allowed be overwrited.
+	// Set the needed headers, and `Content-Type` allowed be overwritten.
 	for name, values := range pc.headers {
 		for _, value := range values {
 			req.Header.Add(name, value)
@@ -445,7 +445,7 @@ func addExtraLabels(dst, src []byte, extraLabels string) []byte {
 		}
 		line = bytes.TrimSpace(line)
 		if len(line) == 0 {
-			// Skip empy lines
+			// Skip empty lines
 			continue
 		}
 		if bytes.HasPrefix(line, bashBytes) {

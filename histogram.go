@@ -36,7 +36,7 @@ var bucketMultiplier = math.Pow(10, 1.0/bucketsPerDecimal)
 //
 // Histogram buckets can be converted to Prometheus-like buckets with `le` labels
 // with `prometheus_buckets(<metric_name>_bucket)` function from PromQL extensions in VictoriaMetrics.
-// (see https://docs.victoriametrics.com/metricsql/ ):
+// (see https://docs.victoriametrics.com/victoriametrics/metricsql/ ):
 //
 //	prometheus_buckets(request_duration_bucket)
 //
@@ -46,7 +46,7 @@ var bucketMultiplier = math.Pow(10, 1.0/bucketsPerDecimal)
 //
 // Zero histogram is usable.
 type Histogram struct {
-	// Mu gurantees synchronous update for all the counters and sum.
+	// Mu guarantees synchronous update for all the counters and sum.
 	//
 	// Do not use sync.RWMutex, since it has zero sense from performance PoV.
 	// It only complicates the code.
@@ -220,7 +220,7 @@ func getVMRange(bucketIdx int) string {
 func initBucketRanges() {
 	v := math.Pow10(e10Min)
 	start := fmt.Sprintf("%.3e", v)
-	for i := 0; i < bucketsCount; i++ {
+	for i := range bucketsCount {
 		v *= bucketMultiplier
 		end := fmt.Sprintf("%.3e", v)
 		bucketRanges[i] = start + "..." + end
@@ -266,5 +266,13 @@ func (h *Histogram) getSum() float64 {
 }
 
 func (h *Histogram) metricType() string {
-	return "histogram"
+	// The Prometheus data model requires histogram metrics to expose "le" labels.
+	// Some collectors, such as the OpenTelemetry (OTEL) Collector, strictly enforce
+	// this data model and apply transformations based on the metric type.
+	//
+	// Because Prometheus metric types are strongly typed and we don't have control over it,
+	// introducing a custom "vm_histogram" type is not possible.
+	//
+	// So it's better to use untyped metric type.
+	return "untyped"
 }

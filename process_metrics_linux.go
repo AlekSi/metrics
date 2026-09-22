@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -79,8 +80,13 @@ func writeProcessMetrics(w io.Writer) {
 
 	utime := float64(p.Utime) / userHZ
 	stime := float64(p.Stime) / userHZ
+
+	// Calculate totalTime by dividing the sum of p.Utime and p.Stime by userHZ.
+	// This reduces possible floating-point precision loss
+	totalTime := float64(p.Utime+p.Stime) / userHZ
+
 	WriteCounterFloat64(w, "process_cpu_seconds_system_total", stime)
-	WriteCounterFloat64(w, "process_cpu_seconds_total", utime+stime)
+	WriteCounterFloat64(w, "process_cpu_seconds_total", totalTime)
 	WriteCounterFloat64(w, "process_cpu_seconds_user_total", utime)
 	WriteCounterUint64(w, "process_major_pagefaults_total", uint64(p.Majflt))
 	WriteCounterUint64(w, "process_minor_pagefaults_total", uint64(p.Minflt))
@@ -90,6 +96,7 @@ func writeProcessMetrics(w io.Writer) {
 	WriteGaugeUint64(w, "process_virtual_memory_bytes", uint64(p.Vsize))
 	writeProcessMemMetrics(w)
 	writeIOMetrics(w)
+	writePSIMetrics(w)
 }
 
 var procSelfIOErrLogged uint32
@@ -157,7 +164,7 @@ func writeFDMetrics(w io.Writer) {
 	}
 	maxOpenFDs, err := getMaxFilesLimit("/proc/self/limits")
 	if err != nil {
-		log.Printf("ERROR: metrics: cannot determine the limit on open file descritors: %s", err)
+		log.Printf("ERROR: metrics: cannot determine the limit on open file descriptors: %s", err)
 		return
 	}
 	WriteGaugeUint64(w, "process_max_fds", maxOpenFDs)
@@ -234,7 +241,6 @@ func writeProcessMemMetrics(w io.Writer) {
 	WriteGaugeUint64(w, "process_resident_memory_anon_bytes", ms.rssAnon)
 	WriteGaugeUint64(w, "process_resident_memory_file_bytes", ms.rssFile)
 	WriteGaugeUint64(w, "process_resident_memory_shared_bytes", ms.rssShmem)
-
 }
 
 func getMemStats(path string) (*memStats, error) {
@@ -277,4 +283,235 @@ func getMemStats(path string) (*memStats, error) {
 		}
 	}
 	return &ms, nil
+}
+
+// writePSIMetrics writes PSI total metrics for the current process to w.
+//
+// See https://docs.kernel.org/accounting/psi.html
+func writePSIMetrics(w io.Writer) {
+	if psiMetricsStart == nil {
+		// Failed to initialize PSI metrics
+		return
+	}
+
+	m, err := getPSIMetrics()
+	if err != nil {
+		log.Printf("ERROR: metrics: cannot expose PSI metrics: %s", err)
+		return
+	}
+
+	WriteCounterFloat64(w, "process_pressure_cpu_waiting_seconds_total", psiTotalSecs(m.cpuSome-psiMetricsStart.cpuSome))
+	WriteCounterFloat64(w, "process_pressure_cpu_stalled_seconds_total", psiTotalSecs(m.cpuFull-psiMetricsStart.cpuFull))
+
+	WriteCounterFloat64(w, "process_pressure_io_waiting_seconds_total", psiTotalSecs(m.ioSome-psiMetricsStart.ioSome))
+	WriteCounterFloat64(w, "process_pressure_io_stalled_seconds_total", psiTotalSecs(m.ioFull-psiMetricsStart.ioFull))
+
+	WriteCounterFloat64(w, "process_pressure_memory_waiting_seconds_total", psiTotalSecs(m.memSome-psiMetricsStart.memSome))
+	WriteCounterFloat64(w, "process_pressure_memory_stalled_seconds_total", psiTotalSecs(m.memFull-psiMetricsStart.memFull))
+}
+
+func psiTotalSecs(microsecs uint64) float64 {
+	// PSI total stats is in microseconds according to https://docs.kernel.org/accounting/psi.html
+	// Convert it to seconds.
+	return float64(microsecs) / 1e6
+}
+
+// psiMetricsStart contains the initial PSI metric values on program start.
+// it is needed in order to make sure the exposed PSI metrics start from zero.
+var psiMetricsStart = func() *psiMetrics {
+	m, err := getPSIMetrics()
+	if err != nil {
+		log.Printf("INFO: metrics: disable exposing PSI metrics because of failed init: %s", err)
+		return nil
+	}
+	return m
+}()
+
+type psiMetrics struct {
+	cpuSome uint64
+	cpuFull uint64
+	ioSome  uint64
+	ioFull  uint64
+	memSome uint64
+	memFull uint64
+}
+
+func getPSIMetrics() (*psiMetrics, error) {
+	cgroupPath := getCgroupV2Path()
+	if cgroupPath == "" {
+		// Do nothing, since PSI requires cgroup v2, and the process doesn't run under cgroup v2.
+		return nil, nil
+	}
+
+	cpuSome, cpuFull, err := readPSITotals(cgroupPath, "cpu.pressure")
+	if err != nil {
+		return nil, err
+	}
+
+	ioSome, ioFull, err := readPSITotals(cgroupPath, "io.pressure")
+	if err != nil {
+		return nil, err
+	}
+
+	memSome, memFull, err := readPSITotals(cgroupPath, "memory.pressure")
+	if err != nil {
+		return nil, err
+	}
+
+	m := &psiMetrics{
+		cpuSome: cpuSome,
+		cpuFull: cpuFull,
+		ioSome:  ioSome,
+		ioFull:  ioFull,
+		memSome: memSome,
+		memFull: memFull,
+	}
+	return m, nil
+}
+
+func readPSITotals(cgroupPath, statsName string) (uint64, uint64, error) {
+	filePath := cgroupPath + "/" + statsName
+	data, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	some := uint64(0)
+	full := uint64(0)
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "some ") && !strings.HasPrefix(line, "full ") {
+			continue
+		}
+
+		tmp := strings.SplitN(line, "total=", 2)
+		if len(tmp) != 2 {
+			return 0, 0, fmt.Errorf("cannot find total from the line %q at %q", line, filePath)
+		}
+		microsecs, err := strconv.ParseUint(tmp[1], 10, 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("cannot parse total=%q at %q: %w", tmp[1], filePath, err)
+		}
+
+		switch {
+		case strings.HasPrefix(line, "some "):
+			some = microsecs
+		case strings.HasPrefix(line, "full "):
+			full = microsecs
+		}
+	}
+	return some, full, nil
+}
+
+func getCgroupV2Path() string {
+	cgroupData, err := os.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		return ""
+	}
+	// Read /proc/self/mountinfo with a timeout. Generating the mountinfo contents
+	// can block in the kernel when a backing filesystem (e.g. a hung NFS or FUSE
+	// mount) is unresponsive. Since this runs at program init via psiMetricsStart,
+	// a blocking read would hang startup, so fall back to disabling PSI metrics instead.
+	mountinfoData, _ := readFileWithTimeout("/proc/self/mountinfo", time.Second)
+	return getCgroupV2PathInternal(string(cgroupData), mountinfoData)
+}
+
+// readFileWithTimeout reads the file at path, returning ("", false) if the read
+// doesn't complete within timeout.
+//
+// A timed-out read leaks the reading goroutine until the read eventually unblocks
+// (if ever). This is an acceptable safeguard against a read of a pseudo-file such
+// as /proc/self/mountinfo hanging on an unresponsive mount.
+func readFileWithTimeout(path string, timeout time.Duration) (string, bool) {
+	type result struct {
+		data []byte
+		err  error
+	}
+	// The channel is buffered so the goroutine can always send and exit,
+	// even after this function has returned on timeout.
+	ch := make(chan result, 1)
+	go func() {
+		data, err := os.ReadFile(path)
+		ch <- result{data: data, err: err}
+	}()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case r := <-ch:
+		if r.err != nil {
+			return "", false
+		}
+		return string(r.data), true
+	case <-timer.C:
+		return "", false
+	}
+}
+
+func getCgroupV2PathInternal(cgroupData, mountinfoData string) string {
+	rel := getCgroupV2RelativePath(cgroupData)
+	if rel == "" {
+		// The process doesn't run under cgroup v2.
+		return ""
+	}
+
+	// Determine the actual cgroup v2 mountpoint instead of assuming /sys/fs/cgroup.
+	// On systems with a hybrid cgroup hierarchy the unified cgroup v2 is mounted
+	// at a different location such as /sys/fs/cgroup/unified.
+	// See https://github.com/VictoriaMetrics/metrics/issues/127
+	mountpoint := getCgroupV2Mountpoint(mountinfoData)
+	if mountpoint == "" {
+		// fallback to assumed path
+		mountpoint = "/sys/fs/cgroup"
+	}
+	cgroupPath := path.Join(mountpoint, rel)
+	// Drop trailing slash if it exists. This prevents from '//' in the constructed paths by the caller.
+	return strings.TrimSuffix(cgroupPath, "/")
+}
+
+// getCgroupV2RelativePath returns the cgroup v2 path of the process relative to
+// the cgroup v2 mountpoint, or an empty string if the process doesn't run under cgroup v2.
+//
+// The cgroup v2 entry in /proc/self/cgroup has an empty controllers field, e.g. "0::/the/path".
+// See https://man7.org/linux/man-pages/man7/cgroups.7.html
+func getCgroupV2RelativePath(cgroupData string) string {
+	for _, line := range strings.Split(cgroupData, "\n") {
+		// Each line has the form "hierarchy-ID:controller-list:cgroup-path".
+		// The cgroup v2 line has an empty hierarchy-ID and controller-list, i.e. it starts with "0::".
+		tmp := strings.SplitN(line, "::", 2)
+		if len(tmp) == 2 && strings.HasPrefix(line, "0::") {
+			return strings.TrimSpace(tmp[1])
+		}
+	}
+	return ""
+}
+
+// getCgroupV2Mountpoint returns the mountpoint of the cgroup v2 (unified) hierarchy
+// parsed from the contents of /proc/self/mountinfo, or an empty string if cgroup v2 isn't mounted.
+func getCgroupV2Mountpoint(mountinfoData string) string {
+	for _, line := range strings.Split(mountinfoData, "\n") {
+		if !strings.Contains(line, "cgroup2") {
+			// fast path
+			continue
+		}
+		// mountinfo lines have the form:
+		//   36 35 98:0 / /sys/fs/cgroup/unified rw,... - cgroup2 cgroup2 rw,...
+		// The optional fields preceding the filesystem type are terminated by " - ".
+		// See https://man7.org/linux/man-pages/man5/proc_pid_mountinfo.5.html
+		tmp := strings.SplitN(line, " - ", 2)
+		if len(tmp) != 2 {
+			continue
+		}
+		after := strings.Fields(tmp[1])
+		if len(after) < 1 || after[0] != "cgroup2" {
+			continue
+		}
+		before := strings.Fields(tmp[0])
+		if len(before) < 5 {
+			continue
+		}
+		// before[4] is the mount point.
+		return before[4]
+	}
+	return ""
 }
